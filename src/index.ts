@@ -1,4 +1,5 @@
 import express from "express"
+import mysql from "mysql2"
 
 const API_URL = "https://uselessfacts.jsph.pl/api/v2/facts/random"
 
@@ -8,7 +9,15 @@ async function getFact(): Promise<string> {
     return json.text
 }
 
-const guestbook = ["Hello!", "Great website!", "Fun."]
+const connection = mysql.createConnection({
+    host: process.env.MYSQL_HOST,
+    user: process.env.MYSQL_USER,
+    password: process.env.MYSQL_PASSWORD,
+    database: process.env.MYSQL_DB,
+})
+
+connection.query("CREATE TABLE IF NOT EXISTS guestbook (id INT PRIMARY KEY AUTO_INCREMENT, entry VARCHAR(255))")
+
 const app = express()
 
 app.get("/", (_, res) => {
@@ -24,10 +33,19 @@ app.get("/fact", async (_, res) => {
 
 app.route("/guestbook")
     .get((_, res) => {
-        res.send(guestbook)
+        connection.query(
+            `SELECT * FROM ${process.env.MYSQL_DB}`,
+            (_, results) => {
+                res.send(results)
+            },
+        )
     })
     .put((req, res) => {
-        guestbook.push(req.query.text as string)
+        const entry = req.query.text as string
+        connection.execute(
+            `INSERT INTO ${process.env.MYSQL_DB} (entry) VALUES (?)`,
+            [entry],
+        )
         res.send()
     })
 
